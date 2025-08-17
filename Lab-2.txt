@@ -1,0 +1,259 @@
+Lab 2: Programming in Machine Instructions
+Tools & Conventions:
+
+Run Programs: tsiram.com / I used https://cdcor.github.io/OmniChron/ 
+
+Memory Storage (Little Endian):
+Example: 0x10A6 is stored as 0xA6, 0x10
+Project: FizzBuzz
+(In hindsight a terrible decision goodbye 12 hrs of my life)
+
+High-Level Code to be Translated (FizzBuzz logic in Rust)
+for i in 1..=100 {
+    if i % 3 == 0 {
+        print!("Fizz")
+    } else if i % 5 == 0 {
+        print!("Buzz")
+    } else {
+        print!("{i}")
+    }
+}
+
+Main Functions Required
+1. Looping:
+    Counter initialization and looping until a condition (e.g., counter < 100).
+    Comparison Logic:
+    Check for divisibility.
+
+2. Printing:
+    May pre-store strings for quick lookup.
+    Incrementing:
+    Update the counter appropriately.
+    Detailed Breakdown
+
+3. Loop, Counter, and Comparisons
+    COUNT: Represents the current number in FizzBuzz (initially set to 3).
+    Loop: Continue looping while the counter is less than 100.
+    Comparisons: Perform 2 separate checks to determine divisibility.
+
+4. Checking for Divisibility
+    Concept: A number is a multiple of 3 if it can be expressed as 3 × n (where n is an integer).
+    Example:
+    Is 9 a multiple of 3?
+    Here, 9 is the TARGET and 3 is the DIVISOR.
+    Logic:
+    Increment by the divisor (e.g., count up by 3) until:
+    Either the TARGET is reached, or
+    A maximum number of iterations (ITERATION_COUNT) is reached (indicating non-divisibility).
+
+Variables:
+    ITERATION_COUNT: Maximum number of checks (linked to the TARGET).
+    DIVISOR: The number against which divisibility is checked.
+    TARGET: The current number being tested for divisibility.
+
+
+High-Level Steps for FizzBuzz:
+    Checking if COUNT is a Multiple of 3:
+        Initialize ITERATION_COUNT = 0.
+        Loop:
+        a. Compare ITERATION_COUNT with TARGET:
+        If they match, the number is not a multiple of 3. Skip Ahead...
+        
+        b. Compare the current sum (starting with the DIVISOR, e.g., 3) with TARGET:
+        If equal, print "Fizz" and break the loop. Update Flag Saying Were Not Printing Number.
+        
+        c. Add the DIVISOR to itself (e.g., 3 + 3). 
+        
+        d. Increment ITERATION_COUNT. e. Repeat from step 2a.
+    
+    Checking if COUNT is a Multiple of 5:
+        Initialize ITERATION_COUNT = 0.
+        Loop:
+        a. Compare ITERATION_COUNT with TARGET:
+        If they match, the number is not a multiple of 5.
+        
+        b. Compare the current sum (starting with the DIVISOR, e.g., 5) with TARGET:
+        If equal, print "Buzz" and break the loop. Update Flag Saying Were Not Printing Number.
+        
+        c. Add the DIVISOR to itself (e.g., 5 + 5). 
+        
+        d. Increment ITERATION_COUNT. e. Repeat from step 2a.
+
+    Final Check:
+    1. If Flag for print number is still set Print the COUNT
+
+    2. Jump Back
+
+    3. Reset All Variables/flags except COUNT
+
+How To Printing
+    String Storage:
+
+    Store the strings "Fizz" and "Buzz" in memory to reduce code complexity.
+    To Print:
+
+    Load Instruction:
+    Load 02 into the X register to indicate a string location is in the Y register.
+    Load String Address:
+    Load the memory location of the string into the Y register.
+    System Call:
+    Execute the SYS CALL to print the string.
+    Stored String Values (Hexadecimal):
+
+    Fizz: 46 69 7A 7A
+    Buzz: 42 75 7A 7A
+
+
+-- Verbose Solution --
+
+
+# Store Fizz Buzz in memory
+# Access 'Fizz' With 0x00F6
+# Access 'Buzz' With 0x00FB
+
+A9 00 8D FF 00 # Store Break /0 at 0x00FF
+A9 7A 8D FE 00 # Store Z at 0x00FE
+A9 7A 8D FD 00 # Store Z at 0x00FD
+A9 75 8D FC 00 # Store U at 0x00FC
+A9 42 8D FB 00 # Store B at 0x00FB
+A9 00 8D FA 00 # Store Break /0 at 0x00FA
+A9 7A 8D F9 00 # Store Z at 0x00F9
+A9 7A 8D F8 00 # Store Z at 0x00F8
+A9 69 8D F7 00 # Store I at 0x00F7
+A9 46 8D F6 00 # Store F at 0x00F6
+
+-- Initialize Variable Locations and Values --
+# Comment out to save space: A9 00 8D F0 00 # Store 00 Here - Will Use to Force Jumps
+# Comment out to save space: A9 01 8D F2 00 # Access/Store SHOULD_PRINT_NUMBER at 0x00F2 (Flag to say if CURRENT_COUNT should be printed)
+# Comment out to save space: A9 00 8D F3 00 # Access/Store RUNNING_COUNT at 0x00F3 Set equal to 0
+# Comment out to save space: A9 00 8D F4 00 # Access/Store ITERATION_COUNT at 0x00F4 (Current Addition Iteration Count)
+# Comment out to save space: A9 00 8D F5 00 # Access/Store CURRENT_COUNT at 0x00F5 (Counter from 1-100)
+
+** Jumps Need Fixing Almost Done **
+
+# Loop while CURRENT_COUNT != 16
+EE F2 00                                # Set SHOULD_PRINT_NUMBER Flag Once at beginning => More efficient than saving 
+A9 00 8D F4 00 8D F3 00                 # Reset ITERATION_COUNT and RUNNING_COUNT to 0
+EE F5 00                                # Increment CURRENT_COUNT
+A2 10                                   # Load X Register with constant 16
+EC F5 00                                # Compare X Register with CURRENT_COUNT
+D0 07                                   # Branch if not equal (continue loop) (Target: AE F5 00)
+A2 01                                   # Load 01 into X Register (ensures next comparison will be not equal)
+EC F0 00                                # Compare 00 to 01 to force jump below
+D0 2A                                   # Checkpoint -1: (47 Bytes) -- Hit Checkpoint -2 Below (Target: D0 73)
+
+# FizzBuzz multiple of 3 Check
+
+    -- INITAL CHECK LOGIC -- 
+    AE F5 00                            # Load X Register with CURRENT_COUNT at 0x00F5
+    EC F4 00                            # Compare X Register with ITERATION_COUNT at 0x00F4
+    D0 07                               # If NOT EQUAL Jump 7 Bytes past Equal logic below (Target: AE F5 00)
+
+    -- Logic if ITERATION_COUNT == TARGET --
+    A2 01                               # Load 01 into X Register
+    EC F0 00                            # Compare 00 to 01 to force jump below
+    D0 2F                               # Jump **2F (47)** Bytes down past rest of multiple of 3 logic (Target: A9 00 8D F3 00)
+
+    -- Inside Loop Logic Check if RUNNING_COUNT == CURRENT_COUNT --
+    AE F5 00                            # Load X Register with CURRENT_COUNT (TARGET)
+    EC F3 00                            # Compare X Register with RUNNING_COUNT
+    D0 15                               # Jump **15 (21)** Bytes past print logic below if not equal (Target: A9 03)
+
+    -- Logic if RUNNING_COUNT == CURRENT_COUNT (TARGET): Print Fizz --
+    A2 02                               # Load 02 into X Register
+    A0 F6                               # Load Fizz Memory Location into Y Register
+    FF                                  # SYS CALL to print 'Fizz'
+    A9 00 8D F2 00                      # Clear SHOULD_PRINT_NUMBER flag
+    A2 01                               # Load 01 into X Register
+    EC F0 00                            # Compare 00 to 01 to force jump below
+    D0 16                               # Jump 16 Bytes Down to Reset Variables Before Buzz Logic (Target: A9 00 8D F3 00)
+    D0 BD                               # Checkpoint 2: (-67 bytes) -- Hit Starting Point of Loop (Target: A9 00 8D F4 00)
+    D0 73                               # Checkpoint -2: (103 Bytes) -- Hit Checkpoint End of Program Below (Target: 00)
+
+    -- Logic if RUNNING_COUNT != TARGET --
+    A9 03                               # Load Accumulator with 3
+    6D F3 00                            # Add With Carry RUNNING_COUNT + 3 in Accumulator
+    8D F3 00                            # Store New RUNNING_COUNT in Memory 0x00F3
+    EE F4 00                            # Increment ITERATION_COUNT
+    A2 01                               # Load 01 into X Register
+    EC F0 00                            # Compare 00 to 01 to force jump below
+    D0 C2                               # Jump back 65 bytes to INITIAL CHECK LOGIC (Target: AE F5 00)
+
+# Reset Variables Before Buzz Check
+A9 00 8D F3 00 8D F4 00                 # Set RUNNING_COUNT and ITERATION_COUNT to 00
+
+# FizzBuzz mutiple of 5 Check
+
+    -- INITAL CHECK LOGIC -- 
+    AE F5 00                            # Load X Register with CURRENT_COUNT at 0x00F5
+    EC F4 00                            # Compare X Register with ITERATION_COUNT at 0x00F4
+    D0 07                               # If NOT EQUAL Jump 7 Bytes past Equal logic below (Target: AE F5 00)
+
+    -- Logic if ITERATION_COUNT == TARGET --
+    A2 01                               # Load 01 into X Register
+    EC F0 00                            # Compare 00 to 01 to force jump below
+    D0 2B                               # Jump 43 Bytes down past rest of multiple of 5 logic (Target: A2 01)
+    
+    -- Inside Loop Logic Check if RUNNING_COUNT == CURRENT_COUNT --
+    AE F5 00                            # Load X Register with CURRENT_COUNT (TARGET)
+    EC F3 00                            # Compare X Register with RUNNING_COUNT
+    D0 11                               # Jump 17 Bytes past print logic below if not equal (Target: A9 05)
+
+    -- Logic if RUNNING_COUNT == TARGET: Print Fizz --
+    A2 02                               # Load 02 into X Register
+    A0 FB                               # Load Buzz Memory Location into Y Register
+    FF                                  # SYS CALL to print 'Buzz'
+    A9 00 8D F2 00                      # Clear SHOULD_PRINT_NUMBER flag
+    A2 01                               # Load 01 into X Register
+    EC F0 00                            # Compare 00 to 01 to force jump below
+    D0 12                               # Jump 18 Bytes down to Post Mutiple Logic Check
+
+    -- Logic if RUNNING_COUNT != TARGET --
+    A9 05                               # Load Accumulator with 5
+    6D F3 00                            # Add With Carry RUNNING_COUNT + 5 in Accumulator
+    8D F3 00                            # Store New RUNNING_COUNT in Memory 0x00F3
+    EE F4 00                            # Increment ITERATION_COUNT
+    A2 01                               # Load 01 into X Register
+    EC F0 00                            # Compare 00 to 01 to force jump below
+    D0 C6                               # Jump back 61 bytes to INITIAL CHECK LOGIC (Target: AE F5 00)
+
+# Post Mutiple Logic Checks
+
+    -- Check SHOULD_PRINT_NUMBER Status --
+    A2 01                               # Load X Register with 01
+    EC F2 00                            # Compare X Register with SHOULD_PRINT_NUMBER
+    A9 01 8D F2 00                      # Reset SHOULD_PRINT_NUMBER flag
+    D0 9C                               # Checkpoint 1: (-107 bytes) -- Hit Checkpoint 2 Above (Target: D0 BD)
+
+    -- Logic if SHOULD_PRINT_NUMBER == 0 --
+    A2 01                               # Load X Register with 01
+    AC F5 00                            # Load CURRENT_COUNT into Y Register
+    FF                                  # SYS Call to print Y Register (CURRENT_COUNT)
+    A2 01                               # Load 01 into X Register
+    EC F0 00                            # Compare 00 to 01 to force jump below  
+    D0 F1                               # Jump back 10 bytes to hit Checkpoint 1 Above (Target: D0 C6)
+
+# End Logic
+
+    -- End Program --
+    00                                  # Break (End Program)
+
+
+END RESULT :>
+
+# Raw Hex (Formatted):
+EE F2 00 A9 00 8D FF 00 A9 7A 8D FE 00 A9 7A 8D FD 00 A9 75 8D FC 00
+A9 42 8D FB 00 A9 00 8D FA 00 A9 7A 8D F9 00 A9 7A 8D F8 00
+A9 69 8D F7 00 A9 46 8D F6 00 A9 00 8D F4 00 8D F3 00 EE F5
+00 A2 10 EC F5 00 D0 07 A2 01 EC F0 00 D0 2A AE F5 00 EC F4 00 D0 07
+A2 01 EC F0 00 D0 2F AE F5 00 EC F3 00 D0 15 A2 02 A0 F6 FF
+A9 00 8D F2 00 A2 01 EC F0 00 D0 16 D0 BD D0 73 A9 03 6D F3
+00 8D F3 00 EE F4 00 A2 01 EC F0 00 D0 C2 A9 00 8D F3 00 8D
+F4 00 AE F5 00 EC F4 00 D0 07 A2 01 EC F0 00 D0 2B AE F5 00
+EC F3 00 D0 11 A2 02 A0 FB FF A9 00 8D F2 00 A2 01 EC F0 00
+D0 12 A9 05 6D F3 00 8D F3 00 EE F4 00 A2 01 EC F0 00 D0 C6
+A2 01 EC F2 00 A9 01 8D F2 00 D0 9C A2 01 AC F5 00 FF A2 01
+EC F0 00 D0 F1 00
+
+
+Runs best in HERE :>
